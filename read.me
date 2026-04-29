@@ -1,0 +1,205 @@
+# Schnack-Eck Recorder
+
+Das Schnack-Eck ist ein robuster Audio-Recorder für längere Gesprächsaufnahmen.  
+Das System ist für den Embedded-Betrieb auf einem Raspberry Pi gedacht, wird aktuell aber noch auf dem PC entwickelt und getestet.
+
+## Ziel
+
+Das System soll:
+
+- Gespräche zuverlässig aufnehmen
+- Aufnahmen lokal speichern
+- bei Fehlern und Abstürzen möglichst viele Daten erhalten
+- fertige Dateien für die spätere Transkription bereitstellen
+
+Die Transkription selbst findet **nicht** auf dem Gerät statt.
+
+## Aktueller Funktionsstand
+
+Das System unterstützt aktuell:
+
+- Aufnahme per Start/Stop-Logik
+- Speicherung in Session-Ordnern
+- chunk-basierte Aufnahme
+- automatischen Merge in eine Review-WAV
+- Recovery bei unterbrochenen Sessions
+- nicht-blockierende Hauptschleife
+- `health.json` für Wartung und Statuskontrolle
+- vorbereiteten Shutdown-Ablauf
+
+## Bedienung im aktuellen PC-Test
+
+### Befehle
+
+- `r` → Start / Stop Aufnahme
+- `x` → Recovery aus dem Fehlerzustand
+- `s` → sauberer Shutdown
+- `q` → Programm beenden
+
+## Geplantes Bedienmodell auf dem Raspberry Pi
+
+- kurzer Tastendruck → Aufnahme starten / stoppen
+- 15 Sekunden gedrückt halten → Shutdown
+- Shutdown nur im Zustand `READY`
+- USB-Stick erst ziehen, wenn das System vollständig heruntergefahren ist
+
+## Zustände
+
+Das System arbeitet mit folgenden Zuständen:
+
+- `BOOTING`
+- `READY`
+- `STARTING_RECORDING`
+- `RECORDING`
+- `STOPPING_RECORDING`
+- `SAVING`
+- `SHUTTING_DOWN`
+- `ERROR`
+
+## Speicherung
+
+Die Daten werden in mehreren Bereichen abgelegt:
+
+### `sessions/`
+Technische Rohdaten einer Aufnahme:
+
+- Session-Ordner
+- Audio-Chunks
+- Session-Metadaten
+
+### `review/`
+Zusammengeführte WAV-Dateien für spätere Transkription.
+
+### `recovered/`
+Ausgeschlossene oder unvollständige Chunk-Dateien aus Recovery-Fällen.
+
+### `logs/`
+Log-Dateien des Systems.
+
+### `health.json`
+Kurzer Gesundheits- und Wartungsstatus des Systems.
+
+## Recovery-Verhalten
+
+Wenn eine Aufnahme unerwartet abbricht:
+
+- bereits abgeschlossene Chunks bleiben erhalten
+- unvollständige `.part`-Chunks werden nicht gemerged
+- gültige Chunks werden in eine `*_recovered.wav` exportiert
+- Recovery wird in JSON und Logs dokumentiert
+
+## Auto-Stop
+
+Damit das Gerät nicht unbegrenzt weiter aufnimmt, gibt es eine maximale Sessiondauer.
+
+Aktuell:
+
+- `max_session_duration_seconds = 3600`
+
+Wenn diese Zeit erreicht wird:
+
+- stoppt die Aufnahme automatisch
+- die Session wird gespeichert
+- der Status wird als `auto_stopped` markiert
+
+## `health.json`
+
+Die Datei enthält zentrale Statusinformationen wie:
+
+- letzter Boot
+- letzter `READY`-Zeitpunkt
+- letzter Fehler
+- letzte Session-ID
+- letzter Session-Status
+- ob gerade aufgenommen wird
+- Shutdown-Zeitpunkte
+
+Diese Datei ist wichtig für Wartung ohne Monitor oder WLAN.
+
+## Nächste Schritte
+
+Geplant sind:
+
+- GPIO-Button statt Konsolen-Input
+- echte LED-Steuerung
+- USB-Stick als Pflichtspeicher
+- Raspberry-Pi-Deployment
+- systemd-Autostart
+
+
+Pi-Migrationsliste
+Was auf dem Pi ersetzt wird
+1. Eingabequelle
+
+Aktuell:
+
+ConsoleInputSource
+
+Später:
+
+GPIOInputSource
+
+Ersetzt:
+
+Konsolenbefehle r, x, s, q
+
+Ziel auf Pi:
+
+kurzer Buttondruck = Start/Stop
+15 Sekunden gedrückt halten = Shutdown
+2. Statusanzeige
+
+Aktuell:
+
+ConsoleStatusIndicator
+
+Später:
+
+GPIOStatusIndicator
+
+Ersetzt:
+
+Konsolen-Ausgabe [LED] State => ...
+
+Ziel auf Pi:
+
+echte LED-Muster
+Fehlercode-Blinken
+klare Anzeige von READY, RECORDING, ERROR, SHUTTING_DOWN
+3. Speicherziel
+
+Aktuell:
+
+lokaler Pfad auf dem PC
+
+Später:
+
+definierter USB-Mountpoint als Pflichtspeicher
+
+Ziel auf Pi:
+
+ohne gültigen USB-Stick kein READY
+kein Fallback auf SD-Karte
+4. Shutdown-Auslösung
+
+Aktuell:
+
+Kommando s
+
+Später:
+
+GPIO-Long-Press
+danach echter OS-Shutdown
+Was gleich bleibt
+
+Diese Teile sollten auf dem Pi weitgehend unverändert bleiben:
+
+state_machine.py
+storage.py
+Session-/Chunk-/Review-Logik
+Recovery-Logik
+health.json
+Auto-Stop nach Maximaldauer
+Operational Readiness
+Logging-Konzept
+Fehlercodes als Logikbasis
