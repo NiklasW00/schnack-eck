@@ -50,6 +50,11 @@ class HealthChecker:
         return self.config.fallback_health_path
 
     def ensure_directories(self) -> None:
+        self.config.runtime_dir.mkdir(parents=True, exist_ok=True)
+
+        if not self._can_write_to_data_root():
+            return
+
         self.config.data_root.mkdir(parents=True, exist_ok=True)
         self.config.sessions_dir.mkdir(parents=True, exist_ok=True)
         self.config.review_dir.mkdir(parents=True, exist_ok=True)
