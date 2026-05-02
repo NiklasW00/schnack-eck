@@ -74,7 +74,7 @@ def main() -> None:
             elif cmd == "s":
                 shutdown_started = machine.request_shutdown()
                 if shutdown_started:
-                    print("Shutdown completed. It is now safe to remove storage or power down.")
+                    print("System shutdown initiated. Wait until the Pi has fully powered down before removing storage or power.")
                     break
                 else:
                     print("Shutdown rejected in current state.")

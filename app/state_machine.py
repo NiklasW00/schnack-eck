@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import subprocess
 from datetime import datetime
 from typing import Optional
 
@@ -322,6 +323,14 @@ class RecorderStateMachine:
         self.set_state(SystemState.SHUTTING_DOWN)
         self.health.mark_shutdown_completed()
         self.logger.info("Shutdown sequence completed.")
+
+        try:
+            self.logger.info("Triggering operating system shutdown.")
+            subprocess.Popen(["sudo", "/usr/sbin/shutdown", "-h", "now"])
+        except Exception as exc:
+            self.handle_error("Failed to trigger operating system shutdown", exc)
+            return False
+
         return True
 
     def try_recover(self) -> None:
