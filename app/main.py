@@ -8,7 +8,7 @@ from app.input_source import ConsoleInputSource, GPIOInputSource
 from app.logger_setup import setup_logger
 from app.recorder import Recorder
 from app.state_machine import RecorderStateMachine
-from app.status_led import ConsoleStatusIndicator
+from app.status_led import ConsoleStatusIndicator, GPIOStatusIndicator
 from app.storage import StorageManager
 
 
@@ -24,7 +24,11 @@ def main() -> None:
         sample_width_bytes=config.sample_width_bytes,
         chunk_duration_seconds=config.chunk_duration_seconds,
     )
-    status_indicator = ConsoleStatusIndicator()
+
+    if config.use_gpio_status_led:
+        status_indicator = GPIOStatusIndicator(led_gpio=config.status_led_gpio_pin)
+    else:
+        status_indicator = ConsoleStatusIndicator()
 
     if config.use_gpio_input:
         input_source = GPIOInputSource(
@@ -74,7 +78,9 @@ def main() -> None:
             elif cmd == "s":
                 shutdown_started = machine.request_shutdown()
                 if shutdown_started:
-                    print("System shutdown initiated. Wait until the Pi has fully powered down before removing storage or power.")
+                    print(
+                        "System shutdown initiated. Wait until the Pi has fully powered down before removing storage or power."
+                    )
                     break
                 else:
                     print("Shutdown rejected in current state.")
@@ -87,6 +93,7 @@ def main() -> None:
         print("\nExiting.")
     finally:
         input_source.stop()
+        status_indicator.stop()
 
 
 if __name__ == "__main__":

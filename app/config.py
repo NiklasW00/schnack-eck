@@ -34,6 +34,9 @@ class Config:
     use_gpio_input: bool = True
     button_gpio_pin: int = 4
     shutdown_hold_seconds: float = 15.0
+    
+    use_gpio_status_led: bool = True
+    status_led_gpio_pin: int = 17
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "sessions_dir", self.data_root / "sessions")
