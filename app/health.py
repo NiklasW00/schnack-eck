@@ -29,7 +29,7 @@ class HealthCheckError(RuntimeError):
 class HealthChecker:
     def __init__(self, config: Config):
         self.config = config
-    
+
     def _can_write_to_data_root(self) -> bool:
         test_file = self.config.data_root / ".health_write_test.tmp"
 
@@ -48,6 +48,23 @@ class HealthChecker:
 
         self.config.fallback_health_path.parent.mkdir(parents=True, exist_ok=True)
         return self.config.fallback_health_path
+
+    def _default_health_payload(self) -> dict[str, Any]:
+        return {
+            "schema_version": 1,
+            "last_boot": None,
+            "last_ready": None,
+            "last_error": None,
+            "last_error_code": None,
+            "last_error_time": None,
+            "last_session_id": None,
+            "last_session_status": None,
+            "usb_storage_available": False,
+            "storage_writable": False,
+            "recording_active": False,
+            "shutdown_requested_at": None,
+            "shutdown_completed_at": None,
+        }
 
     def ensure_directories(self) -> None:
         self.config.runtime_dir.mkdir(parents=True, exist_ok=True)
@@ -105,8 +122,7 @@ class HealthChecker:
     # -----------------------------
     # Audio presence
     # -----------------------------
-            
-    
+
     def resolve_input_device(self) -> int:
         try:
             devices = sd.query_devices()
@@ -152,7 +168,7 @@ class HealthChecker:
             )
 
         return input_devices[0][0]
-    
+
     def check_audio_presence(self) -> None:
         self.resolve_input_device()
 
@@ -161,10 +177,6 @@ class HealthChecker:
     # -----------------------------
 
     def check_audio_capture_readiness(self) -> None:
-        """
-        Prüft, ob ein InputStream mit der echten Konfiguration und dem
-        aufgelösten Eingabegerät geöffnet werden kann.
-        """
         device_id = self.resolve_input_device()
 
         try:
@@ -230,38 +242,31 @@ class HealthChecker:
         if health_path.exists():
             return
 
-        payload = {
-            "schema_version": 1,
-            "last_boot": None,
-            "last_ready": None,
-            "last_error": None,
-            "last_error_code": None,
-            "last_error_time": None,
-            "last_session_id": None,
-            "last_session_status": None,
-            "usb_storage_available": False,
-            "storage_writable": False,
-            "recording_active": False,
-            "shutdown_requested_at": None,
-            "shutdown_completed_at": None,
-        }
-
-        with health_path.open("w", encoding="utf-8") as f:
-            json.dump(payload, f, indent=2)
+        self.write_health(self._default_health_payload())
 
     def read_health(self) -> dict[str, Any]:
         self.ensure_health_file()
         health_path = self._get_active_health_path()
 
-        with health_path.open("r", encoding="utf-8") as f:
-            return json.load(f)
+        try:
+            with health_path.open("r", encoding="utf-8") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError, ValueError):
+            payload = self._default_health_payload()
+            self.write_health(payload)
+            return payload
 
     def write_health(self, payload: dict[str, Any]) -> None:
         health_path = self._get_active_health_path()
         health_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with health_path.open("w", encoding="utf-8") as f:
+        tmp_path = health_path.with_suffix(health_path.suffix + ".tmp")
+
+        with tmp_path.open("w", encoding="utf-8") as f:
             json.dump(payload, f, indent=2)
+            f.flush()
+
+        tmp_path.replace(health_path)
 
     def update_health(self, **updates: Any) -> None:
         payload = self.read_health()
