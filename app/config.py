@@ -16,6 +16,10 @@ class Config:
     logs_dir: Path = field(init=False)
     recovered_dir: Path = field(init=False)
     health_path: Path = field(init=False)
+    
+    runtime_dir: Path = Path("/home/nik/schnack-eck/runtime")
+    fallback_health_path: Path = runtime_dir / "health.json"
+    fallback_logs_dir: Path = runtime_dir / "logs"
 
     sample_rate: int = 16000
     channels: int = 1

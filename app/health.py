@@ -29,6 +29,25 @@ class HealthCheckError(RuntimeError):
 class HealthChecker:
     def __init__(self, config: Config):
         self.config = config
+    
+    def _can_write_to_data_root(self) -> bool:
+        test_file = self.config.data_root / ".health_write_test.tmp"
+
+        try:
+            self.config.data_root.mkdir(parents=True, exist_ok=True)
+            with test_file.open("w", encoding="utf-8") as f:
+                f.write("ok")
+            test_file.unlink(missing_ok=True)
+            return True
+        except Exception:
+            return False
+
+    def _get_active_health_path(self) -> Path:
+        if self._can_write_to_data_root():
+            return self.config.health_path
+
+        self.config.fallback_health_path.parent.mkdir(parents=True, exist_ok=True)
+        return self.config.fallback_health_path
 
     def ensure_directories(self) -> None:
         self.config.data_root.mkdir(parents=True, exist_ok=True)
