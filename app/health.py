@@ -219,9 +219,10 @@ class HealthChecker:
     # -----------------------------
 
     def ensure_health_file(self) -> None:
-        self.config.health_path.parent.mkdir(parents=True, exist_ok=True)
+        health_path = self._get_active_health_path()
+        health_path.parent.mkdir(parents=True, exist_ok=True)
 
-        if self.config.health_path.exists():
+        if health_path.exists():
             return
 
         payload = {
@@ -238,22 +239,23 @@ class HealthChecker:
             "recording_active": False,
             "shutdown_requested_at": None,
             "shutdown_completed_at": None,
-            
         }
 
-        with self.config.health_path.open("w", encoding="utf-8") as f:
+        with health_path.open("w", encoding="utf-8") as f:
             json.dump(payload, f, indent=2)
 
     def read_health(self) -> dict[str, Any]:
         self.ensure_health_file()
+        health_path = self._get_active_health_path()
 
-        with self.config.health_path.open("r", encoding="utf-8") as f:
+        with health_path.open("r", encoding="utf-8") as f:
             return json.load(f)
 
     def write_health(self, payload: dict[str, Any]) -> None:
-        self.config.health_path.parent.mkdir(parents=True, exist_ok=True)
+        health_path = self._get_active_health_path()
+        health_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with self.config.health_path.open("w", encoding="utf-8") as f:
+        with health_path.open("w", encoding="utf-8") as f:
             json.dump(payload, f, indent=2)
 
     def update_health(self, **updates: Any) -> None:
