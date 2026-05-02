@@ -27,7 +27,10 @@ def main() -> None:
     status_indicator = ConsoleStatusIndicator()
 
     if config.use_gpio_input:
-        input_source = GPIOInputSource(button_gpio=config.button_gpio_pin)
+        input_source = GPIOInputSource(
+            button_gpio=config.button_gpio_pin,
+            shutdown_hold_seconds=config.shutdown_hold_seconds,
+        )
     else:
         input_source = ConsoleInputSource()
 
@@ -45,7 +48,9 @@ def main() -> None:
 
     if config.use_gpio_input:
         print(f"GPIO button input active on BCM GPIO{config.button_gpio_pin}")
-        print("Console commands are disabled in GPIO mode.")
+        print(
+            f"Short press = record toggle, hold {config.shutdown_hold_seconds:.0f}s = shutdown"
+        )
     else:
         print("Commands: [r] button press, [x] recover from error, [s] shutdown, [q] quit")
 

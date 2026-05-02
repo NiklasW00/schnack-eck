@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import queue
 import threading
+import time
 from abc import ABC, abstractmethod
 from typing import Optional
 
@@ -68,12 +69,17 @@ class GPIOInputSource(InputSource):
         self,
         button_gpio: int = 4,
         bounce_time: float = 0.05,
+        shutdown_hold_seconds: float = 15.0,
     ) -> None:
         self.button_gpio = button_gpio
         self.bounce_time = bounce_time
+        self.shutdown_hold_seconds = shutdown_hold_seconds
 
         self._command_queue: queue.Queue[str] = queue.Queue()
         self._button: Button | None = None
+
+        self._pressed_at: float | None = None
+        self._long_press_fired = False
 
     def start(self) -> None:
         if self._button is not None:
@@ -85,11 +91,17 @@ class GPIOInputSource(InputSource):
             bounce_time=self.bounce_time,
         )
         self._button.when_pressed = self._on_pressed
+        self._button.when_released = self._on_released
+        self._button.when_held = self._on_held
+        self._button.hold_time = self.shutdown_hold_seconds
 
     def stop(self) -> None:
         if self._button is not None:
             self._button.close()
             self._button = None
+
+        self._pressed_at = None
+        self._long_press_fired = False
 
     def get_next_command(self) -> Optional[str]:
         try:
@@ -98,4 +110,26 @@ class GPIOInputSource(InputSource):
             return None
 
     def _on_pressed(self) -> None:
-        self._command_queue.put("r")
+        self._pressed_at = time.monotonic()
+        self._long_press_fired = False
+
+    def _on_held(self) -> None:
+        if self._long_press_fired:
+            return
+
+        self._command_queue.put("s")
+        self._long_press_fired = True
+
+    def _on_released(self) -> None:
+        if self._pressed_at is None:
+            return
+
+        pressed_duration = time.monotonic() - self._pressed_at
+        self._pressed_at = None
+
+        if self._long_press_fired:
+            self._long_press_fired = False
+            return
+
+        if pressed_duration < self.shutdown_hold_seconds:
+            self._command_queue.put("r")
