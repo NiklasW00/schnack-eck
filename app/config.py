@@ -30,6 +30,9 @@ class Config:
 
     input_device_id: int | None = None
     preferred_input_device_name: str | None = None
+    
+    use_gpio_input: bool = False
+    button_gpio_pin: int = 4
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "sessions_dir", self.data_root / "sessions")

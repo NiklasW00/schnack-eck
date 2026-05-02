@@ -5,6 +5,8 @@ import threading
 from abc import ABC, abstractmethod
 from typing import Optional
 
+from gpiozero import Button
+
 
 class InputSource(ABC):
     @abstractmethod
@@ -59,3 +61,41 @@ class ConsoleInputSource(InputSource):
 
             if cmd:
                 self._command_queue.put(cmd)
+
+
+class GPIOInputSource(InputSource):
+    def __init__(
+        self,
+        button_gpio: int = 4,
+        bounce_time: float = 0.05,
+    ) -> None:
+        self.button_gpio = button_gpio
+        self.bounce_time = bounce_time
+
+        self._command_queue: queue.Queue[str] = queue.Queue()
+        self._button: Button | None = None
+
+    def start(self) -> None:
+        if self._button is not None:
+            return
+
+        self._button = Button(
+            self.button_gpio,
+            pull_up=True,
+            bounce_time=self.bounce_time,
+        )
+        self._button.when_pressed = self._on_pressed
+
+    def stop(self) -> None:
+        if self._button is not None:
+            self._button.close()
+            self._button = None
+
+    def get_next_command(self) -> Optional[str]:
+        try:
+            return self._command_queue.get_nowait()
+        except queue.Empty:
+            return None
+
+    def _on_pressed(self) -> None:
+        self._command_queue.put("r")

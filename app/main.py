@@ -4,7 +4,7 @@ import time
 
 from app.config import Config
 from app.health import HealthChecker
-from app.input_source import ConsoleInputSource
+from app.input_source import ConsoleInputSource, GPIOInputSource
 from app.logger_setup import setup_logger
 from app.recorder import Recorder
 from app.state_machine import RecorderStateMachine
@@ -25,7 +25,11 @@ def main() -> None:
         chunk_duration_seconds=config.chunk_duration_seconds,
     )
     status_indicator = ConsoleStatusIndicator()
-    input_source = ConsoleInputSource()
+
+    if config.use_gpio_input:
+        input_source = GPIOInputSource(button_gpio=config.button_gpio_pin)
+    else:
+        input_source = ConsoleInputSource()
 
     machine = RecorderStateMachine(
         config=config,
@@ -39,7 +43,11 @@ def main() -> None:
     machine.boot()
     input_source.start()
 
-    print("Commands: [r] button press, [x] recover from error, [s] shutdown, [q] quit")
+    if config.use_gpio_input:
+        print(f"GPIO button input active on BCM GPIO{config.button_gpio_pin}")
+        print("Console commands are disabled in GPIO mode.")
+    else:
+        print("Commands: [r] button press, [x] recover from error, [s] shutdown, [q] quit")
 
     try:
         while True:
