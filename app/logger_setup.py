@@ -10,27 +10,30 @@ class ResilientFileHandler(logging.FileHandler):
         self._logger_name = logger_name
         self._disabled_due_to_io_error = False
 
-    def emit(self, record: logging.LogRecord) -> None:
+    def handleError(self, record: logging.LogRecord) -> None:
         if self._disabled_due_to_io_error:
             return
 
+        self._disabled_due_to_io_error = True
+
+        logger = logging.getLogger(self._logger_name)
+
         try:
-            super().emit(record)
-        except OSError as exc:
-            self._disabled_due_to_io_error = True
-
-            logger = logging.getLogger(self._logger_name)
             logger.removeHandler(self)
+        except Exception:
+            pass
 
-            try:
-                self.close()
-            except Exception:
-                pass
+        try:
+            self.close()
+        except Exception:
+            pass
 
+        try:
             logger.warning(
-                "File logging disabled after I/O failure. Falling back to console/journal logging only. Reason: %s",
-                exc,
+                "File logging disabled after I/O failure. Falling back to console/journal logging only."
             )
+        except Exception:
+            pass
 
 
 def setup_logger(log_dir: Path) -> logging.Logger:
