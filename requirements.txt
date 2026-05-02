@@ -2,3 +2,7 @@ numpy==2.4.4
 sounddevice==0.5.5
 cffi==2.0.0
 pycparser==3.0
+sounddevice
+pytest
+gpiozero
+lgpio
